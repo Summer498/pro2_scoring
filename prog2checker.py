@@ -455,7 +455,6 @@ class Application(tkinter.Tk):
         if f:
             shutil.unpack_archive(downloadPath+"/"+self.ASSIGN+'-'+str(CLASS)+'.zip', downloadPath)
         folder_path = downloadPath+"/"+self.ASSIGN+'-'+str(CLASS)
-        print(folder_path)
         self.file_extension = self.ASSIGN.split(".")[-1]
         if self.file_extension == "c":
             self.files = glob.glob(f"{folder_path}/*.{self.file_extension}")
@@ -941,7 +940,7 @@ class Application(tkinter.Tk):
                     input,output,comment,command=test
                     result[student_num]+=f"テストケース{n+1}\n input=[{input}]\n*---*---*---*---*---*---*---*---*---*\n"
                     try:
-                        p=subprocess.run(file[:-2]+".exe "+command,input=input,stdout=subprocess.PIPE,shell=False,encoding='cp932',timeout=self.time_limit)
+                        p=subprocess.run(file[:-2]+".exe "+command,input=input,stdout=subprocess.PIPE,shell=False,encoding='utf-8',timeout=self.time_limit)
                         if p.returncode:
                             result[student_num]+="実行時エラーです。\n"
                             if f:
