@@ -125,8 +125,11 @@ for key, val in student_dic.items():
 tf = open(f"{downloadPath}/assign_dic.json", "r")
 assign_dic = json.load(tf)
 assign_list=list(assign_dic.keys())
+#print(assign_dic)
+#print(assign_list)
 
 inp_df_temp=pd.DataFrame([["","","出力が違います",""]],columns=["入力例","出力例","コメント","(コマンドライン引数)"])
+
 
 class Application(tkinter.Tk):
     def __init__(self):
@@ -135,7 +138,7 @@ class Application(tkinter.Tk):
         self.editor_width = 900
         self.editor_height = 500
         
-        self.geometry("1260x800")
+        self.geometry("1260x670")
         self.title("採点システム")
         
           # 画像表示のキャンバス作成と配置
@@ -181,16 +184,16 @@ class Application(tkinter.Tk):
         self.editor.config(xscrollcommand=xbar.set)
         self.editor.config(yscrollcommand=ybar.set)
         
-        # pyファイル実行結果表示用
+
         # 画像表示のキャンバス作成と配置
         self.editor_code = tkinter.Canvas(
             self,
             width=self.editor_width,
             height=150,
-            scrollregion = (0,0,3000,600)
+            scrollregion = (0,0,0,0)
+            #scrollregion = (0,0,3000,600)
         )
         self.editor_code.grid(row=2, column=0)
-        
         # スクロールバーを作成
         xbar2 = tkinter.Scrollbar(orient='horizontal')  # バーの方向
         ybar2 = tkinter.Scrollbar(orient='vertical')  # バーの方向
@@ -209,19 +212,31 @@ class Application(tkinter.Tk):
         # キャンバススクロール時に実行する処理を設定
         self.editor_code.config(xscrollcommand=xbar2.set)
         self.editor_code.config(yscrollcommand=ybar2.set)
+        
         # ボタンを配置するフレームの作成と配置
         self.button_frame = tkinter.Frame(width = 1200-self.editor_width,
                                           height = self.editor_height)
-        self.button_frame.grid(row=0, column=2)
+        self.button_frame.grid(row=0, column=2, rowspan=3)
         
         self.font = ("",12)
-         # 課題コード選択ボックス
-        self.comb_assign_code = ttk.Combobox(self.button_frame,
-                                     values=assign_list, font=("",4), width=10)
         
+        #  # 課題コード選択ボックス
+        # self.comb_assign_code = ttk.Combobox(self.button_frame,
+        #                              values=assign_list, font=("",4), width=10)
+        
+        # # 課題選択ボックス
+        # self.comb_assign = ttk.Combobox(self.button_frame,
+        #                              values=student_list, font=("",), width=10)
+
+        # 課題コード選択ボックス
+        self.assign_code = ttk.Combobox(self.button_frame,
+                                     values=assign_list, font=("",12), width=7)
+        self.assign_code.current(0)
+        self.assign_code.bind('<<ComboboxSelected>>', lambda event: self.assign.config(values=assign_dic[self.assign_code.get()]))
         # 課題選択ボックス
-        self.comb_assign = ttk.Combobox(self.button_frame,
-                                     values=student_list, font=("",), width=10)
+        self.assign = ttk.Combobox(self.button_frame,
+                                     values=assign_dic[assign_list[0]], font=("",12), width=10)
+
         # ファイル読み込みボタンの作成と配置
         self.load_button = tkinter.Button(
             self.button_frame,
@@ -316,6 +331,18 @@ class Application(tkinter.Tk):
             font=self.font
         )
         self.current_num = 0
+
+        # 修正要求課題選択ボックス
+        self.fix_assign = ttk.Combobox(self.button_frame,
+                                     values=assign_list, font=("",12), width=7)
+        # 修正要求ボタンの作成と配置
+        self.fixrequest_button = tkinter.Button(
+            self.button_frame,
+            text = "修正要求",
+            command = self.push_fixrequest_button,
+            bg = "IndianRed1",
+            font = self.font
+        )
     
         self.editor_obj= None
         self.output_files=[]
@@ -324,15 +351,21 @@ class Application(tkinter.Tk):
         self.ASSIGN=""
         self.ASSIGN_NUM=""
         self.CODE=None
-        self.message = "課題番号を入力してください"
+        self.message = "課題を選択してください"
+        
+        self.message_st = tkinter.StringVar() #文字更新用のStringVarを定義
+        self.message_st.set(self.message)
+        self.msg_canvas = tkinter.Canvas(self.button_frame, height=40, width=1200-self.editor_width,
+                                         background="white")
         self.lbl_message = tkinter.Label(self.button_frame,
-                                         text=self.message, background="white",
+                                         textvariable=self.message_st, background="white",
                                          font=self.font)
+        
+        
         self.student = ""
         self.lbl_student = tkinter.Label(self.button_frame,
                                          text=self.student, background="white",
                                          font=self.font)
-        self.msg_box()
         
         self.txt_set = set()
         self.txt_list = list(self.txt_set)
@@ -343,23 +376,17 @@ class Application(tkinter.Tk):
         #コード実行結果を格納
         self.result_code=None
 
-         # 課題コード選択ボックス
-        self.assign_code = ttk.Combobox(self.button_frame,
-                                     values=assign_list, font=("",12), width=7)
-        self.assign_code.current(0)
-        self.assign_code.bind('<<ComboboxSelected>>', lambda event: self.assign.config(values=assign_dic[self.assign_code.get()]))
-        # 課題選択ボックス
-        self.assign = ttk.Combobox(self.button_frame,
-                                     values=assign_dic[assign_list[0]], font=("",12), width=10)
         self.df = None
         self.output_file=None
         self.editor_code_obj=None
         self.time_limit=3
         #self.df = self.mk_df()
-        self.state_dict={"1":"OK","0":"NG",np.nan:"未採点","未提出":"未提出"}
+        self.state_dict={"4":"OK","1":"OK","0":"NG",np.nan:"未採点","未提出":"未提出"}
 
         # gridでウェイジェットの配置
         pady = 12
+        self.msg_canvas.grid(row=0, column=0, columnspan=6, padx=2, pady=pady, 
+                              sticky=tkinter.W+tkinter.E)
         self.lbl_message.grid(row=0, column=0, columnspan=6, padx=2, pady=pady, 
                               sticky=tkinter.W+tkinter.E)
         self.assign_code.grid(row=1, column=0, columnspan=2, padx=2, pady=pady)
@@ -385,9 +412,14 @@ class Application(tkinter.Tk):
                                 sticky=tkinter.W+tkinter.E)
         self.init_button.grid(row=10, column=0, columnspan=6, padx=10, pady=pady,
                                 sticky=tkinter.W+tkinter.E)
+        self.fix_assign.grid(row=11, column=0, columnspan=2, padx=2, pady=pady)
+        self.fixrequest_button.grid(row=11, column=2, columnspan=6, padx=10, pady=pady,
+                                sticky=tkinter.W+tkinter.E)
         
         # 採点ファイルの拡張子
         self.file_extension = None
+        
+        self.msg_box()
         
     def edit(self):
         # root = tkinter.Tk()
@@ -404,16 +436,18 @@ class Application(tkinter.Tk):
         self.msg_box()
            
     def push_download_button(self):
-        num=self.assign_code.get()
+        week = self.assign_code.get()
         assign = self.assign.get()
-        if len(assign)==0:
-            self.message = "課題名を入力してください"
-        elif len(num)==0:
-            self.message = "課題番号を入力してください"
+        if week not in assign_dic:
+            self.message = "alert_課題名が不正です"
+        elif assign not in assign_dic[week]:
+            self.message = "alert_課題名が不正です"
         else:
+            self.message = "alert_ダウンロードを行います"
+            self.msg_box()
             try:
                 self.ASSIGN=assign
-                self.ASSIGN_NUM=num
+                self.ASSIGN_NUM = week
                 self.output_file=f"{downloadPath}/eval_{self.ASSIGN}.xlsx"
                 if os.path.exists(downloadPath+"/"+self.ASSIGN+'-'+str(CLASS)):
                     ret = messagebox.askyesno("確認", "すでに課題が存在します。\n再ダウンロードしますか？")
@@ -443,15 +477,15 @@ class Application(tkinter.Tk):
                 driver.get(url)
                 time.sleep(1)
                 driver.close()
-                self.message = "ダウンロードが終了しました"
+                self.message = "alert_ダウンロードが終了しました"
             except:
-                self.message = "課題名が不正です"
-            
-            self.msg_box()
-            
+                self.message = "alert_課題名が不正です"
             self.push_load_button()
+        self.msg_box()
             
     def push_load_button(self,f=True):
+        self.message = "alert_読み込んでいます"
+        self.msg_box()
         if f:
             shutil.unpack_archive(downloadPath+"/"+self.ASSIGN+'-'+str(CLASS)+'.zip', downloadPath)
         folder_path = downloadPath+"/"+self.ASSIGN+'-'+str(CLASS)
@@ -478,20 +512,18 @@ class Application(tkinter.Tk):
                         self.df = self.mk_df()
                 else:
                     self.df = self.mk_df()
+                self.push_setting_button()
                 ret = messagebox.askyesno("確認", "自動で採点を行います。\n結果が上書きされますがよろしいですか？")
                 self.result_code=self.execute_C(ret)
                 if self.result_code is not None:
-                    if self.editor_code_obj is not None:
-                        self.editor_code.delete(self.editor_code_obj)
-                    self.editor_code_obj=self.editor_code.create_text(10, 10, anchor="nw", text=self.result_code[int(basename)], fill="black",font=self.font)
-                    self.message = "コードの実行が完了しました！"
+                    self.show_result(self.result_code[int(basename)])
+                    self.message = "alert_コードの実行が完了しました！"
                 self.output_files.append(self.ASSIGN)
             else:
                 self.files = None
                 self.result_code = None
                 self.df = None
-                self.message = "フォルダが適切ではありません"
-                
+                self.message = "alert_フォルダが適切ではありません"
         elif self.file_extension == "txt":
             self.files = glob.glob(f"{folder_path}/*.{self.file_extension}")
             self.file_len = len(self.files)
@@ -507,30 +539,27 @@ class Application(tkinter.Tk):
                 self.df = self.mk_df()
             else:
                 self.files = None
-                self.message = "フォルダが適切ではありません"
+                self.message = "alert_フォルダが適切ではありません"
                 self.student = ""
         self.msg_box()
         
     def push_choice_button(self):
-        self.message = "ファイルが存在しません"
+        self.message = "alert_ファイルが存在しません"
         if self.files is not None:
             value = self.comb_student.get()
             value = value.split(" ")[0]
-            #print(value)
-            #print(type(value))
             for i, file in enumerate(self.files):
                 if value in file:
                     self.message = ""
                     if self.result_code is not None:
-                        if self.editor_code_obj is not None:
-                            self.editor_code.delete(self.editor_code_obj)
-                        self.editor_code_obj=self.editor_code.create_text(10, 10, anchor="nw", text=self.result_code[int(value)],fill="black",font=self.font)
+                        self.show_result(self.result_code[int(value)])
                     if int(value) in self.df.index:
                         self.message=self.state_dict[self.df["判定"][int(value)]]
                     self.comb_txt.delete(0, tkinter.END)
                     if self.df["判定"][int(value)]=="0":
                         self.comb_txt.insert(tkinter.END, self.df["コメント"][int(value)])
                     self.current_num = i
+                    self.edit()
                     break
         self.msg_box()
         
@@ -541,12 +570,6 @@ class Application(tkinter.Tk):
             basename = os.path.splitext(os.path.basename(filename))[0]
             self.edit()
             self.message = ""
-            if self.result_code is not None:
-                if self.editor_code_obj is not None:
-                    self.editor_code.delete(self.editor_code_obj)
-                self.editor_code_obj=self.editor_code.create_text(10, 10, anchor="nw", text=self.result_code[int(basename)],fill="black",font=self.font)
-            if int(basename) in self.df.index:
-                self.message=self.state_dict[self.df["判定"][int(basename)]]
             ind = self.return_list_index(basename)
             if ind is not None:
                 self.comb_student.delete(0, tkinter.END)
@@ -554,8 +577,13 @@ class Application(tkinter.Tk):
             self.comb_txt.delete(0, tkinter.END)
             if ind is not None  and self.df["判定"][int(basename)]=="0":               
                 self.comb_txt.insert(tkinter.END, self.df["コメント"][int(basename)])
+            if int(basename) in self.df.index:
+                self.message=self.state_dict[self.df["判定"][int(basename)]]
+                if self.result_code is not None:
+                    self.show_result(self.result_code[int(basename)])
+            
         else:
-            self.message = "ファイルが存在しません"
+            self.message = "alert_ファイルが存在しません"
         self.msg_box()
         
     
@@ -565,26 +593,23 @@ class Application(tkinter.Tk):
             filename = self.files[self.current_num]
             basename = os.path.splitext(os.path.basename(filename))[0]
             self.edit()
-            self.message = ""
-            if self.result_code is not None:
-                if self.editor_code_obj is not None:
-                    self.editor_code.delete(self.editor_code_obj)
-                self.editor_code_obj=self.editor_code.create_text(10, 10, anchor="nw", text=self.result_code[int(basename)],fill="black",font=self.font)
-            if int(basename) in self.df.index:
-                    self.message=self.state_dict[self.df["判定"][int(basename)]]
-                    if self.result_code is not None:
-                        if self.editor_code_obj is not None:
-                            self.editor_code.delete(self.editor_code_obj)
-                        self.editor_code_obj=self.editor_code.create_text(10, 10, anchor="nw", text=self.result_code[int(basename)],fill="black",font=self.font)
             ind = self.return_list_index(basename)
+
             if ind is not None:
                 self.comb_student.delete(0, tkinter.END)
                 self.comb_student.insert(tkinter.END, student_list[ind])
             self.comb_txt.delete(0, tkinter.END)
             if ind is not None  and self.df["判定"][int(basename)]=="0":
                 self.comb_txt.insert(tkinter.END, self.df["コメント"][int(basename)])
+            self.message = ""
+            if int(basename) in self.df.index:
+                    self.message=self.state_dict[self.df["判定"][int(basename)]]
+                    if self.result_code is not None:
+                        self.show_result(self.result_code[int(basename)])
+            
+            
         else:
-            self.message = "ファイルが存在しません"
+            self.message = "alert_ファイルが存在しません"
         self.msg_box()
         
     # 個別にcファイルを実行して、出力結果を表示する
@@ -601,7 +626,7 @@ class Application(tkinter.Tk):
             ta_filepath を実行する
             """
             tests=self.input_df.values
-            ta_exe_path=f"{os.path.splitext(self.files[self.current_num])[0]}_TA.exe"
+            ta_exe_path=f"{os.path.splitext(self.files[self.current_num])[0]}_TA"
             ta_file_result=""
             #コンパイルを行ってエラーの場合はスルーする
             if subprocess.run("gcc " + ta_filepath + " -o " + ta_exe_path, shell=True).returncode:
@@ -609,30 +634,29 @@ class Application(tkinter.Tk):
             else:
                 for n,test in enumerate(tests):
                     input,output,comment,command=test
-                    ta_file_result+=f"テストケース{n+1}\n input=[{input}]\n"
+                    ta_file_result+=f"テストケース{n+1}\n input=[{input}]\n*---*---*---*---*---*---*---*---*---*\n"
                     try:
-                        p=subprocess.run( ta_exe_path+" "+command,input=input,stdout=subprocess.PIPE,shell=False,encoding='cp932',timeout=self.time_limit)
+                        p=subprocess.run(ta_exe_path+" "+command,input=input,stdout=subprocess.PIPE,shell=False,encoding='utf-8',timeout=self.time_limit)
                         if p.returncode:
                             ta_file_result+="実行時エラーです。\n" 
                         else:
                             ta_file_result+=p.stdout+"\n"
-                    except:
+                    except UnicodeDecodeError:
+                        ta_file_result+="UnicodeDecodeError\n"
+                    except Exception:
                         ta_file_result+="終わりません\n"
-            if self.result_code is not None:
-                if self.editor_code_obj is not None:
-                    self.editor_code.delete(self.editor_code_obj)
-                self.editor_code_obj=self.editor_code.create_text(10, 10, anchor="nw", text=ta_file_result,fill="black",font=self.font)
+
+            self.show_result(ta_file_result)
             # 実行が終わると削除される
             os.remove(ta_filepath)
             
     # 表示するテキストを元のテキスト（学生のもの）に戻す
     def push_back_button(self):
+        if self.files is None:
+            return
         filename = self.files[self.current_num]
         basename = os.path.splitext(os.path.basename(filename))[0]
-        if self.result_code is not None:
-                if self.editor_code_obj is not None:
-                    self.editor_code.delete(self.editor_code_obj)
-                self.editor_code_obj=self.editor_code.create_text(10, 10, anchor="nw", text=self.result_code[int(basename)],fill="black",font=self.font)
+        self.show_result(self.result_code[int(basename)])
         if self.files is not None:
             self.edit()
         
@@ -645,7 +669,7 @@ class Application(tkinter.Tk):
             self.txt_set.add(comment)
             self.txt_list = list(self.txt_set)
             self.comb_txt.config(values=self.txt_list)
-            self.df.loc[basename, "判定"] = "1"
+            self.df.loc[basename, "判定"] = "4"
             self.df.loc[basename, "コメント"] = comment
             self.df.loc[basename, "system"] = "!ok"
             self.comb_txt.delete(0, tkinter.END)
@@ -670,7 +694,7 @@ class Application(tkinter.Tk):
             self.txt_list = list(self.txt_set)
             self.comb_txt.config(values=self.txt_list)
             if len(comment)==0:
-                self.message = "コメントを入力してください"
+                self.message = "alert_コメントを入力してください"
             else:
                 self.df.loc[basename, "判定"] = "0"
                 self.df.loc[basename, "コメント"] = comment
@@ -686,7 +710,8 @@ class Application(tkinter.Tk):
                     self.comb_student.insert(tkinter.END, student_list[ind])
                     self.push_next_button()
             self.msg_box()
-        
+    
+    #出力ボタン
     def push_output_button(self):
         if self.df is not None:
             null_num = self.df.isnull().sum()["判定"]
@@ -695,13 +720,13 @@ class Application(tkinter.Tk):
                 if ret == True:
                     self.output(self.output_file,self.ASSIGN_NUM,self.ASSIGN)
                 else:
-                    self.message = "ファイルを出力しませんでした"
+                    self.message = "alert_ファイルを出力しませんでした"
             else:
                 ret = messagebox.askyesno("確認", "未採点の課題があります。\nexcelに出力しますか？")
                 if ret == True:
                     self.output(self.output_file,self.ASSIGN_NUM,self.ASSIGN)
                 else:
-                    self.message = "ファイルを出力しませんでした"
+                    self.message = "alert_ファイルを出力しませんでした"
             if len(self.output_files)>1:
                 for out in self.output_files:
                     if out==self.ASSIGN:
@@ -710,8 +735,9 @@ class Application(tkinter.Tk):
                     if ret == True:
                         self.output(f"{downloadPath}/eval_{out}.xlsx",self.ASSIGN_NUM,out)
                     else:
-                        self.message = out+"にはファイルを出力しませんでした"
+                        self.message = "alert_" + out+ "にはファイルを出力しませんでした"
                 self.msg_box()
+                
     def push_setting_button(self):
         '''モーダルダイアログボックスの作成'''
         dlg_modal = tkinter.Toplevel(self)
@@ -742,7 +768,7 @@ class Application(tkinter.Tk):
         def save():
             for i in range(n):
                 for j in range(4):
-                    if i==0 or j==3 or (forms[i][j].get("1.0", tkinter.END)!="\n" and forms[i][j].get("1.0", tkinter.END)!=""):
+                    if i==0 or j!=0 or (forms[i][j].get("1.0", tkinter.END)!="\n" and forms[i][j].get("1.0", tkinter.END)!=""):
                         items[i][j]=forms[i][j].get("1.0", tkinter.END).strip()
                     else:
                         items[i][j]=None
@@ -800,7 +826,10 @@ class Application(tkinter.Tk):
         filename_label = tkinter.Label(dlg_modal, text="ファイル名", font=self.font)
         filename_label.grid(row=n+3,column=2)
         filename_input=tkinter.Entry(dlg_modal,width=20)
-        filename_input.insert(tkinter.END,"A00_0")
+        if self.ASSIGN !="":
+            filename_input.insert(tkinter.END,f"{self.ASSIGN}_test")
+        else:
+            filename_input.insert(tkinter.END,"A00_0")
         filename_input.grid(row=n+3,column=3)
         save_button = tkinter.Button(
             dlg_modal,
@@ -830,15 +859,27 @@ class Application(tkinter.Tk):
         #print(self.input_df)
         dlg_modal.transient(self.master)   # タスクバーに表示しない
         # ダイアログが閉じられるまで待つ
-        app.wait_window(dlg_modal)  
+        app.wait_window(dlg_modal)
+
     def push_init_button(self):
         ret = messagebox.askyesno("確認", "本当に初期化しますか？（出力されていない内容は破棄されます）")
         if ret == True:
             self.destroy()
             self.__init__()
+
+    def push_fixrequest_button(self):
+        assign_code = self.fix_assign.get()
+        if assign_code not in assign_list:
+            return
+        ret = messagebox.askyesno("確認", f"{assign_code} に修正要求を出しますか？")
+        if not ret:
+            return
+        self.stump_ok(assign_code, save_flag=ret)
+
     def output(self,output_file,ASSIGN_NUM,ASSIGN):
         self.df.to_excel(output_file)
-        self.message = "excelファイルを出力しました"
+        #print(self.df)
+        self.message = "alert_excelファイルを出力しました"
         self.msg_box()
         ret = messagebox.askyesno("確認", "結果をレポートシステムに出力しますか？")
         if ret == True:
@@ -865,7 +906,7 @@ class Application(tkinter.Tk):
         tests=self.input_df.values
         result={i:"提出されていません" for i in student_dic.keys()}
         for file in self.files:
-            student_num=int(file.split("\\")[-1].split(".")[0])
+            student_num=int(os.path.splitext(file)[0])
             result[student_num]=""
             #print(student_num)
             evaluation=None
@@ -899,7 +940,17 @@ class Application(tkinter.Tk):
                                         self.txt_list = list(self.txt_set)
                                         self.comb_txt.config(values=self.txt_list)
                                         break
-                except:
+                except UnicodeDecodeError:
+                    result[student_num]+="UnicodeDecodeError\n"
+                    if f:
+                        self.df.loc[student_num, "判定"] = "0"
+                        self.df.loc[student_num, "コメント"] = "UnicodeDecodeError"
+                        self.df.loc[student_num, "system"] = "!NG/"+"UnicodeDecodeError"
+                        evaluation="UnicodeDecodeError"
+                        self.txt_set.add("UnicodeDecodeError")
+                        self.txt_list = list(self.txt_set)
+                        self.comb_txt.config(values=self.txt_list)
+                except Exception:
                     result[student_num]+="終わりません\n"
                     if f:
                         self.df.loc[student_num, "判定"] = "0"
@@ -910,22 +961,23 @@ class Application(tkinter.Tk):
                         self.txt_list = list(self.txt_set)
                         self.comb_txt.config(values=self.txt_list)
             if f and evaluation is None:
-                self.df.loc[student_num, "判定"] = "1"
+                self.df.loc[student_num, "判定"] = "4"
                 self.df.loc[student_num, "コメント"] = ""
                 self.df.loc[student_num, "system"] = "!ok"
         return result
     
     # C言語のcode実行
     def execute_C(self,f):
+        #print(self.df)
         tests=self.input_df.values
         result={i:"提出されていません" for i in student_dic.keys()}
         for file in self.files:
-            student_num=int(file.split("\\")[-1].split(".")[0])
+            student_num=int(os.path.split(file)[-1].split(".")[0])
             result[student_num]=""
             #print(student_num)
             evaluation=None
             #コンパイルを行ってエラーの場合はスルーする
-            if subprocess.run("gcc " + file + " -o " + file[:-2], shell=True).returncode:
+            if subprocess.run("gcc " + file + " -o " + os.path.splitext(file)[0], shell=True).returncode:
                 result[student_num]+="コンパイルエラーです。\n"
                 if f:
                     self.df.loc[student_num, "判定"] = "0"
@@ -940,7 +992,7 @@ class Application(tkinter.Tk):
                     input,output,comment,command=test
                     result[student_num]+=f"テストケース{n+1}\n input=[{input}]\n*---*---*---*---*---*---*---*---*---*\n"
                     try:
-                        p=subprocess.run(file[:-2]+".exe "+command,input=input,stdout=subprocess.PIPE,shell=False,encoding='utf-8',timeout=self.time_limit)
+                        p=subprocess.run(os.path.splitext(file)[0]+" "+command,input=input,stdout=subprocess.PIPE,shell=False,encoding='utf-8',timeout=self.time_limit)
                         if p.returncode:
                             result[student_num]+="実行時エラーです。\n"
                             if f:
@@ -965,7 +1017,17 @@ class Application(tkinter.Tk):
                                             self.txt_list = list(self.txt_set)
                                             self.comb_txt.config(values=self.txt_list)
                                             break
-                    except:
+                    except UnicodeDecodeError:
+                        result[student_num]+="UnicodeDecodeError\n"
+                        if f:
+                            self.df.loc[student_num, "判定"] = "0"
+                            self.df.loc[student_num, "コメント"] = "UnicodeDecodeError"
+                            self.df.loc[student_num, "system"] = "!NG/"+"UnicodeDecodeError"
+                            evaluation="UnicodeDecodeError"
+                            self.txt_set.add("UnicodeDecodeError")
+                            self.txt_list = list(self.txt_set)
+                            self.comb_txt.config(values=self.txt_list)
+                    except Exception:
                         result[student_num]+="終わりません\n"
                         if f:
                             self.df.loc[student_num, "判定"] = "0"
@@ -976,21 +1038,51 @@ class Application(tkinter.Tk):
                             self.txt_list = list(self.txt_set)
                             self.comb_txt.config(values=self.txt_list)
             if f and evaluation is None:
-                self.df.loc[student_num, "判定"] = "1"
+                self.df.loc[student_num, "判定"] = "4"
                 self.df.loc[student_num, "コメント"] = ""
                 self.df.loc[student_num, "system"] = "!ok"
+            #print(self.df)
         return result
     
+    # コードの出力結果を表示
+    def show_result(self, val):
+        if self.result_code is not None:
+            if self.editor_code_obj is not None:
+                self.editor_code.delete(self.editor_code_obj)
+            self.editor_code_obj=self.editor_code.create_text(10, 10, anchor="nw", text=val,
+                                                              fill="black", font=self.font)
+            # テキストの境界ボックスを取得
+            bbox = self.editor_code.bbox(self.editor_code_obj)
+            # テキストの幅と高さを計算
+            text_width = bbox[2] - bbox[0]
+            text_height = bbox[3] - bbox[1]
+            self.editor_code.config(scrollregion = (0,0,text_width+10,text_height))
+    
     def msg_box(self):
-        self.lbl_message.config(text=self.message)
         self.lbl_student.config(text=self.student)
-        
+        alert_flg = self.message.split("_")[0]
+        if alert_flg == "alert":
+            self.message = self.message.split("_")[1]
+            self.message_st.set(self.message) #StringVarに反映
+            message_x = 170
+            message_y = 23
+            while message_x >= 30:
+                self.lbl_message.place_forget() #ラベル消去
+                self.lbl_message.place(x=message_x, y=message_y) #ラベル再配置
+                time.sleep(0.1)
+                self.update()
+                message_x -= 10
+        else:
+            self.message_st.set(self.message) #StringVarに反映
+            self.lbl_message.config(text=self.message)
+            self.lbl_message.place(x=30, y=23)
+            
     def read_df(self):
         df=pd.read_excel(self.output_file, index_col=0)
         
         for file in self.files:
             basename = int(os.path.splitext(os.path.basename(file))[0])
-            if df["判定"][basename] != "1":
+            if df["判定"][basename] != "4":
                 # コンボボックスの要素のうち未提出かok以外のものに*を記入
                 ind = self.return_list_index(str(basename))
                 student_list[ind] = student_list[ind].replace(" *", "") + " *"
@@ -1023,6 +1115,86 @@ class Application(tkinter.Tk):
             if txt in val:
                 return i
         return None
+    
+    def stump_ok(self, assign,save_flag=False):
+        driver = webdriver.Chrome(ChromeDriverManager().install(),options=options)
+        driver.command_executor._commands["send_command"] = (
+            'POST',
+            '/session/$sessionId/chromium/send_command'
+        )
+        driver.execute(
+            'send_command',
+            params={
+                'cmd': 'Page.setDownloadBehavior',
+                'params': {'behavior': 'allow', 'downloadPath': downloadPath}
+            }
+        )
+        info=["S="+CLASS_CODE,"act_report=1","c="+CLASS,"r="+assign]
+        url=make_login_url(BASE_URL+"&".join(info))
+        driver.get(url)
+        trs=driver.find_elements(By.TAG_NAME,"tr")
+        oks=[]
+        ngs=[]
+        ths=trs[3].find_elements(By.TAG_NAME,"th")
+        cols=["late"]+[i.text.split('\n')[0] for i in ths[6:-1]]
+        student=dict()
+        for j in range(4,len(trs)-1):
+            ths=trs[j].find_elements(By.TAG_NAME,"td")
+            num=ths[0].text
+            student[num]=[]
+            f=-1
+            if len(ths[4].find_elements(By.TAG_NAME,"font"))==0:
+                student[num].append(0)
+            else:
+                student[num].append(1)
+            for th in ths[6:-1]:
+                if "○"in th.text or "△" in th.text:
+                    if "ok" in th.text.lower():
+                        student[num].append(4)
+                        if f!=-1:
+                            continue
+                        f=1
+                    elif "ng" in th.text.lower():
+                        student[num].append(0)
+                        if f==0:
+                            continue
+                        f=2
+                    else:
+                        student[num].append(None)
+                        f=0
+                else:
+                    student[num].append(None)
+            if f==1:
+                oks.append(num)
+            elif f==2:
+                if "修正要求" not in ths[3].text:
+                    ngs.append(num)
+        df=pd.DataFrame.from_dict(student, orient="index", columns=cols)
+        savename="pro2.xlsx"
+        if os.path.exists(savename):
+            with pd.ExcelWriter(savename,engine="openpyxl", mode='a', if_sheet_exists='replace') as writer:
+                df.to_excel(writer,sheet_name=f"{assign}", na_rep=0)
+        else:
+            with pd.ExcelWriter(savename,engine="openpyxl") as writer:
+                df.to_excel(writer,sheet_name=f"{assign}", na_rep=0)
+        #print(oks)
+        #print(ngs)
+        #print(df)
+        if save_flag:
+            info=["S="+CLASS_CODE,"act_report=1","c="+CLASS,"r="+assign,"eval_r="+assign]
+            url=make_login_url(BASE_URL+"&".join(info))
+            driver.get(url)
+            for ok in oks:
+                a=driver.find_element(By.NAME,"eval:"+str(ok)+":"+assign)
+                a.clear()
+                a.send_keys("!ok")
+            if len(oks)!=0:
+                a.send_keys(Keys.ENTER)
+            for ng in ngs:
+                info=["S="+CLASS_CODE,"act_reject=1","s="+ng,"r="+assign,"return_to=class "+CLASS+" report "+assign,"exec=1","revise=1"]
+                url=make_login_url(BASE_URL+"&".join(info))
+                driver.get(url)
+            driver.close()
     
 if __name__ == "__main__":
     app = Application()
