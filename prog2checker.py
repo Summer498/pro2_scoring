@@ -640,10 +640,16 @@ class Application(tkinter.Tk):
                         if p.returncode:
                             ta_file_result+="実行時エラーです。\n" 
                         else:
-                            ta_file_result+=p.stdout+"\n"
-                    except UnicodeDecodeError:
+                            if p.stdout is None:
+                                p=subprocess.run(ta_exe_path+" "+command,input=input,stdout=subprocess.PIPE,shell=False,encoding='cp932',timeout=self.time_limit)
+                            if p.stdout is not None:
+                                ta_file_result+=p.stdout+"\n"
+                            else:
+                                ta_file_result+="UnicodeDecodeError\n"
+                    except UnicodeDecodeError as e:
                         ta_file_result+="UnicodeDecodeError\n"
-                    except Exception:
+                    except Exception as e:
+                        print(e)
                         ta_file_result+="終わりません\n"
 
             self.show_result(ta_file_result)
@@ -1004,20 +1010,34 @@ class Application(tkinter.Tk):
                                 self.txt_list = list(self.txt_set)
                                 self.comb_txt.config(values=self.txt_list)
                         else:
-                            result[student_num]+=p.stdout+"\n"
-                            if f:
-                                if evaluation is None:
-                                    for out in output.split("\n"):
-                                        if out not in p.stdout:
-                                            self.df.loc[student_num, "判定"] = "0"
-                                            self.df.loc[student_num, "コメント"] = comment
-                                            self.df.loc[student_num, "system"] = "!NG/"+comment
-                                            evaluation=comment
-                                            self.txt_set.add(comment)
-                                            self.txt_list = list(self.txt_set)
-                                            self.comb_txt.config(values=self.txt_list)
-                                            break
+                            if p.stdout is None:
+                                p=subprocess.run(os.path.splitext(file)[0]+" "+command,input=input,stdout=subprocess.PIPE,shell=False,encoding='cp932',timeout=self.time_limit)
+                            if p.stdout is not None:
+                                result[student_num]+=p.stdout+"\n"
+                                if f:
+                                    if evaluation is None:
+                                        for out in output.split("\n"):
+                                            if out not in p.stdout:
+                                                self.df.loc[student_num, "判定"] = "0"
+                                                self.df.loc[student_num, "コメント"] = comment
+                                                self.df.loc[student_num, "system"] = "!NG/"+comment
+                                                evaluation=comment
+                                                self.txt_set.add(comment)
+                                                self.txt_list = list(self.txt_set)
+                                                self.comb_txt.config(values=self.txt_list)
+                                                break
+                            else:
+                                result[student_num]+="UnicodeDecodeError\n"
+                                if f:
+                                    self.df.loc[student_num, "判定"] = "0"
+                                    self.df.loc[student_num, "コメント"] = "UnicodeDecodeError"
+                                    self.df.loc[student_num, "system"] = "!NG/"+"UnicodeDecodeError"
+                                    evaluation="UnicodeDecodeError"
+                                    self.txt_set.add("UnicodeDecodeError")
+                                    self.txt_list = list(self.txt_set)
+                                    self.comb_txt.config(values=self.txt_list)
                     except UnicodeDecodeError:
+
                         result[student_num]+="UnicodeDecodeError\n"
                         if f:
                             self.df.loc[student_num, "判定"] = "0"
