@@ -19,6 +19,7 @@ import json
 import pathlib
 from tkinter import messagebox
 import subprocess
+import openpyxl
 #config読み込み
 config_ini = configparser.ConfigParser()
 config_ini.read('config.ini', encoding='utf-8')
@@ -541,6 +542,14 @@ class Application(tkinter.Tk):
                 self.files = None
                 self.message = "alert_フォルダが適切ではありません"
                 self.student = ""
+            if os.path.exists(self.output_file):
+                ret = messagebox.askyesno("確認", "すでに出力ファイルが存在します。\n前回の続きから再開しますか？")
+                if ret == True:
+                    self.df=self.read_df()
+                else:
+                    self.df = self.mk_df()
+            else:
+                self.df = self.mk_df()
         self.msg_box()
         
     def push_choice_button(self):
@@ -1156,18 +1165,21 @@ class Application(tkinter.Tk):
         oks=[]
         ngs=[]
         ths=trs[3].find_elements(By.TAG_NAME,"th")
-        cols=["late"]+[i.text.split('\n')[0] for i in ths[6:-1]]
+        cols=["name","late"]+[i.text.split('\n')[0] for i in ths[6:-1]]
         student=dict()
+        comments=dict()
+        wb = openpyxl.Workbook()
+        ws = wb.active
         for j in range(4,len(trs)-1):
             ths=trs[j].find_elements(By.TAG_NAME,"td")
             num=ths[0].text
-            student[num]=[]
+            student[num]=[ths[1].text]
             f=-1
             if len(ths[4].find_elements(By.TAG_NAME,"font"))==0:
                 student[num].append(0)
             else:
                 student[num].append(1)
-            for th in ths[6:-1]:
+            for n,th in enumerate(ths[6:-1]):
                 if "○"in th.text or "△" in th.text:
                     if "ok" in th.text.lower():
                         student[num].append(4)
@@ -1175,6 +1187,7 @@ class Application(tkinter.Tk):
                             continue
                         f=1
                     elif "ng" in th.text.lower():
+                        comments[ws.cell(row=j-2,column=n+4).coordinate]=(th.find_elements(By.TAG_NAME,"font")[0].get_attribute('title'))
                         student[num].append(0)
                         if f==0:
                             continue
@@ -1200,6 +1213,11 @@ class Application(tkinter.Tk):
         #print(oks)
         #print(ngs)
         #print(df)
+        wb = openpyxl.load_workbook(savename)
+        ws = wb[f"{assign}"]
+        for id in comments:
+            ws[id].comment=openpyxl.comments.Comment(comments[id],"admin")
+        wb.save(savename)
         if save_flag:
             info=["S="+CLASS_CODE,"act_report=1","c="+CLASS,"r="+assign,"eval_r="+assign]
             url=make_login_url(BASE_URL+"&".join(info))
