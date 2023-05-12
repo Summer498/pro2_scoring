@@ -1,7 +1,7 @@
 altgraph==0.17.3
 async-generator==1.10
 attrs==22.1.0
-certifi @ file:///C:/b/abs_ac29jvt43w/croot/certifi_1665076682579/work/certifi
+certifi==2023.5.7
 cffi==1.15.1
 charset-normalizer==2.1.1
 colorama==0.4.6
