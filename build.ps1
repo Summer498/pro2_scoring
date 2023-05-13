@@ -1,0 +1,1 @@
+pyinstaller prog2checker.py --onefile
