@@ -3,4 +3,5 @@ config.ini
 *.xlsx
 *.csv
 *.json
+*.spec
 */*
